@@ -1,0 +1,12 @@
+# anathema.summyt.net: static assets only, no worker code.
+# deploy with `npm run deploy` once the page is approved.
+name = "anathema-site"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "./dist"
+not_found_handling = "404-page"
+
+[[routes]]
+pattern = "anathema.summyt.net"
+custom_domain = true
