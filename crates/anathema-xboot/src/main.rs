@@ -421,6 +421,7 @@ unsafe fn install_amfi_standin(va: u64) {
 }
 
 static mut CP_STORE_VA: u64 = 0;
+static mut SBX_VA: u64 = 0;
 
 unsafe fn install_kc(blob: &[u8]) {
     let base_va = rd64(blob, 8);
@@ -445,6 +446,8 @@ unsafe fn install_kc(blob: &[u8]) {
     }
     install_runtime_stub(base_va + blen as u64 - 0x2000);
     CP_STORE_VA = base_va + blen as u64 - 0x2000 + 0x800;
+    // the last 8 KB of the plist reserve are unused and rwx: room for the stand-in sandbox policy's tables
+    SBX_VA = base_va + rd64(blob, 24) + 0x80000 - 0x2000;
     install_amfi_standin(base_va + blen as u64 - 0x1000);
     com1("anathema-xboot: kext block installed\n");
 }
@@ -527,7 +530,23 @@ unsafe fn install_loadkexts(blob: &[u8]) {
         }
     }
     let dst_va = CP_STORE_VA - 0x800 + 0x900;
-    core::ptr::copy_nonoverlapping(blob.as_ptr(), dst_va.wrapping_sub(KBASE) as *mut u8, blob.len());
+    // the stand-in sandbox policy's data (conf, ops table, handle) lives in the amfi page, past the amfi stand-in
+    let sbx_va = SBX_VA;
+    core::ptr::write_bytes(sbx_va.wrapping_sub(KBASE) as *mut u8, 0, 0x2000);
+    let mut buf = [0u8; 0x700];
+    let n = blob.len();
+    buf[..n].copy_from_slice(blob);
+    let ph = 0xaabb_ccdd_eeff_1122u64.to_le_bytes();
+    let mut i = 0;
+    while i + 8 <= n {
+        if buf[i..i + 8] == ph {
+            buf[i..i + 8].copy_from_slice(&sbx_va.to_le_bytes());
+            i += 8;
+        } else {
+            i += 1;
+        }
+    }
+    core::ptr::copy_nonoverlapping(buf.as_ptr(), dst_va.wrapping_sub(KBASE) as *mut u8, n);
     let rel = (dst_va as i64 - (KBASE as i64 + LOAD_INIT_PA as i64 + 5)) as i32;
     *site = 0xe9;
     core::ptr::copy_nonoverlapping(rel.to_le_bytes().as_ptr(), site.add(1), 4);
