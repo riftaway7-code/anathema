@@ -1,47 +1,34 @@
-import { m, useReducedMotion } from "motion/react";
-import { DiscordLogoIcon, GithubLogoIcon } from "@phosphor-icons/react";
-import { hero } from "../content.js";
-
-const rise = (reduce, delay) => ({
-  initial: reduce ? false : { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] },
-});
+import { useRef } from "react";
+import { useScroll } from "motion/react";
+import { ArrowUpRightIcon, DiscordLogoIcon } from "@phosphor-icons/react";
+import Stage from "./Stage.jsx";
+import { hero, cta } from "../content.js";
 
 export default function Hero() {
-  const reduce = useReducedMotion();
+  const ref = useRef(null);
+  // 0 at the top of the page, 1 once the hero's end reaches the bottom of the viewport:
+  // by then the monitor faces the visitor, whole and centred on screen
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   return (
-    <section className="hero wrap" aria-labelledby="hero-title">
-      <div className="hero__copy">
-        <m.h1 id="hero-title" {...rise(reduce, 0)}>
-          {hero.title}
-        </m.h1>
-        <m.p className="hero__sub" {...rise(reduce, 0.08)}>
-          {hero.sub}
-        </m.p>
-        <m.div className="hero__ctas" {...rise(reduce, 0.16)}>
-          <a className="btn btn--primary" href={hero.primary.href}>
+    <section className="hero" ref={ref} aria-labelledby="hero-title">
+      <div className="wrap hero__copy">
+        <p className="hero__eyebrow">{hero.eyebrow}</p>
+        <h1 id="hero-title">{hero.title}</h1>
+        <p className="hero__sub">{hero.sub}</p>
+        <div className="hero__ctas">
+          <a className="btn btn--primary btn--large" href={cta.discord.href}>
             <DiscordLogoIcon size={20} weight="fill" aria-hidden="true" />
-            {hero.primary.label}
+            {cta.discord.label}
           </a>
-          <a className="btn btn--ghost" href={hero.secondary.href}>
-            <GithubLogoIcon size={20} aria-hidden="true" />
-            {hero.secondary.label}
+          <a className="btn btn--ghost btn--large" href={cta.github.href}>
+            {cta.github.label}
+            <ArrowUpRightIcon size={18} aria-hidden="true" />
           </a>
-        </m.div>
-      </div>
-      <m.figure className="hero__shot" {...rise(reduce, 0.24)}>
-        <div className="screen">
-          <img
-            src={hero.image.src}
-            width={hero.image.width}
-            height={hero.image.height}
-            alt={hero.image.alt}
-            fetchPriority="high"
-          />
         </div>
-        <figcaption>{hero.image.caption}</figcaption>
-      </m.figure>
+      </div>
+      <div className="wrap wrap--wide">
+        <Stage progress={scrollYProgress} />
+      </div>
     </section>
   );
 }

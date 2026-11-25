@@ -9,9 +9,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-ssr && node prerender.mjs",
     "preview": "vite preview --port 4174",
-    "deploy": "vite build && wrangler deploy"
+    "deploy": "vite build && wrangler deploy",
+    "frames": "python3 -I render/frames.py"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

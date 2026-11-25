@@ -3,22 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // lets css hold the hero screen dark until the power-on intro runs (see Stage.jsx)
+      document.documentElement.classList.add("js");
+    </script>
     <title>Anathema: macOS 27 on a regular PC</title>
-    <meta name="description" content="Anathema boots Apple's real Intel macOS 27 kernel and userspace on a PC with its own open-source UEFI loader. No OpenCore." />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0c0d0b" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f6f7f3" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="Anathema is an open-source UEFI loader that boots Apple's real Intel macOS 27 kernel and userspace on a PC, without OpenCore. Early research; runs in QEMU today." />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08090a" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="canonical" href="https://anathema.summyt.net/" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anathema" />
     <meta property="og:url" content="https://anathema.summyt.net/" />
     <meta property="og:title" content="Anathema: macOS 27 on a regular PC" />
     <meta property="og:description" content="An open-source UEFI loader that boots Apple's real Intel macOS 27 kernel and userspace on a PC. No OpenCore." />
-    <meta property="og:image" content="https://anathema.summyt.net/boot.png" />
+    <meta property="og:image" content="https://anathema.summyt.net/og.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A PC monitor showing the macOS 27.2 Intel kernel's verbose boot text, started by Anathema" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image:alt" content="A PC monitor showing the macOS 27.2 Intel kernel's verbose boot text, started by Anathema" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"WebSite","name":"Anathema","url":"https://anathema.summyt.net/"},
+        {"@type":"SoftwareSourceCode","name":"Anathema","url":"https://anathema.summyt.net/",
+         "description":"Open-source UEFI loader that boots Apple's Intel macOS 27 kernel and userspace on a PC, without OpenCore.",
+         "codeRepository":"https://github.com/riftaway7-code/anathema","programmingLanguage":"Rust",
+         "license":"https://opensource.org/licenses/MIT","runtimePlatform":"UEFI x86-64",
+         "creator":{"@type":"Organization","name":"summyt","url":"https://summyt.net"}}]}
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--app--></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

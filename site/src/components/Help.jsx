@@ -1,37 +1,48 @@
-import { DesktopTowerIcon, ListChecksIcon, BugIcon, ArrowUpRightIcon, DiscordLogoIcon } from "@phosphor-icons/react";
-import Reveal from "./Reveal.jsx";
-import { help, hero } from "../content.js";
+import { ArrowUpRightIcon, DiscordLogoIcon } from "@phosphor-icons/react";
+import { help, cta } from "../content.js";
 
 export default function Help() {
   return (
-    <section className="section wrap" aria-labelledby="help-title">
-      <Reveal>
-        <h2 id="help-title">{help.title}</h2>
-      </Reveal>
-      <div className="bento">
-        <Reveal className="tile tile--test">
-          <DesktopTowerIcon size={32} aria-hidden="true" />
-          <h3>{help.test.name}</h3>
-          <p>{help.test.text}</p>
-          <a className="btn btn--dark" href={hero.primary.href}>
+    <section id="help" className="help" aria-labelledby="help-title">
+      <div className="wrap">
+        <div className="help__main reveal">
+          <h2 id="help-title">{help.title}</h2>
+          <p className="help__sub">
+            {help.sub} Post in{" "}
+            <code className="tok" translate="no">
+              {help.channel}
+            </code>
+            .
+          </p>
+          <a className="btn btn--primary btn--large" href={cta.discord.href}>
             <DiscordLogoIcon size={20} weight="fill" aria-hidden="true" />
-            {hero.primary.label}
+            {cta.discord.label}
           </a>
-        </Reveal>
-        <Reveal className="tile tile--task" delay={0.08}>
-          <ListChecksIcon size={28} aria-hidden="true" />
-          <h3>{help.task.name}</h3>
-          <p>{help.task.text}</p>
-          <a className="text-link" href={help.task.link.href}>
-            {help.task.link.label}
-            <ArrowUpRightIcon size={16} aria-hidden="true" />
-          </a>
-        </Reveal>
-        <Reveal className="tile tile--report" delay={0.16}>
-          <BugIcon size={28} aria-hidden="true" />
-          <h3>{help.report.name}</h3>
-          <p>{help.report.text}</p>
-        </Reveal>
+        </div>
+        <div className="help__more">
+          {help.items.map((h) => (
+            <div key={h.name} className="help__item reveal">
+              <h3>{h.name}</h3>
+              <p>
+                {h.text}
+                {h.channel && (
+                  <>
+                    {" "}
+                    Use{" "}
+                    <code className="tok" translate="no">
+                      {h.channel}
+                    </code>
+                    .
+                  </>
+                )}
+              </p>
+              <a className="text-link" href={h.link.href}>
+                {h.link.label}
+                <ArrowUpRightIcon size={16} aria-hidden="true" />
+              </a>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
