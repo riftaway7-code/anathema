@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  uefi:
+    name: Build UEFI loaders
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p anathema-xboot --target x86_64-unknown-uefi
+      - run: cargo build --release -p anathema-boot --target x86_64-unknown-uefi
+
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build anathema-xboot (provides ANATHEMA_EFI for anathema-setup)
+        run: cargo build --release -p anathema-xboot --target x86_64-unknown-uefi
+
+      - name: Test cross-platform crates
+        shell: bash
+        env:
+          ANATHEMA_EFI: ${{ github.workspace }}/target/x86_64-unknown-uefi/release/anathema-xboot.efi
+        run: |
+          cargo test -p anathema-media
+          cargo test -p anathema-setup
+          cargo check -p anathema-hwcheck
+          if [ -d crates/anathema-test ]; then
+            cargo test -p anathema-test
+          fi
+
+      - name: Test Unix crates
+        if: runner.os != 'Windows'
+        run: |
+          cargo test -p anathema-kc
+          cargo test -p anathema-xlat
+          cargo test -p anathema-rt --test mmu_and_memory
+
+      - name: Build Windows setup GUI
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          ANATHEMA_EFI: ${{ github.workspace }}/target/x86_64-unknown-uefi/release/anathema-xboot.efi
+        run: cargo build --release -p anathema-setup
