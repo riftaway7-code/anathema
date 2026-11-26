@@ -4,7 +4,7 @@
 //! with setup.
 
 use crate::fat32::FileSpec;
-use crate::XCP;
+use crate::{XCP, XCP2, XCP3};
 use anathema_kc::macho::{x86_64_slice, Macho};
 use anathema_kc::{link, Config};
 use anathema_media::download::download_verified;
@@ -238,6 +238,8 @@ pub fn esp_files<'a>(efi: &'a [u8], k: &'a KernelFiles) -> Vec<FileSpec<'a>> {
         FileSpec { path: "anathema/xkernel", data: &k.xkernel },
         FileSpec { path: "anathema/xkc.bin", data: &k.xkc },
         FileSpec { path: "anathema/xcp.bin", data: XCP },
+        FileSpec { path: "anathema/xcp2.bin", data: XCP2 },
+        FileSpec { path: "anathema/xcp3.bin", data: XCP3 },
     ]
 }
 

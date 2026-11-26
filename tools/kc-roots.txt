@@ -46,3 +46,5 @@ com.apple.driver.AppleUSBMassStorageInterfaceNub
 com.apple.iokit.IOSCSIReducedBlockCommandsDevice
 com.apple.driver.usb.AppleUSBHostCompositeDevice
 com.apple.driver.usb.AppleUSBHostDeviceSupport
+com.apple.AppleFSCompression.AppleFSCompressionTypeZlib
+com.apple.AppleFSCompression.AppleFSCompressionTypeDataless

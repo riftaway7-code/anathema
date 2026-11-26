@@ -477,7 +477,7 @@ impl App {
                 card(ui, false, |ui| {
                     ui.label(RichText::new("Will be written").color(EMBER).strong());
                     ui.label("EFI partition: EFI/BOOT/BOOTX64.EFI and EFI/anathema/anathema.efi");
-                    ui.label("Kernel files: anathema\\xkernel, xkc.bin and xcp.bin");
+                    ui.label("Kernel files: anathema\\xkernel, xkc.bin and the xcp stubs");
                     ui.label(download_note());
                     ui.label(RichText::new(format!("Boot image {} bytes", EFI.len())).color(DIM).size(12.0));
                     let backup = install::backup_target(&disk)
@@ -498,7 +498,7 @@ impl App {
                 card(ui, false, |ui| {
                     ui.label(RichText::new("Will be written").color(EMBER).strong());
                     ui.label("New GPT: 200 MiB FAT32 EFI partition with EFI/BOOT/BOOTX64.EFI");
-                    ui.label("Kernel files: anathema\\xkernel, xkc.bin and xcp.bin");
+                    ui.label("Kernel files: anathema\\xkernel, xkc.bin and the xcp stubs");
                     ui.label(download_note());
                     ui.label("Data partition for macOS media (exFAT) on the rest");
                 });

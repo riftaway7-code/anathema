@@ -87,8 +87,49 @@ fn update_plan_counts_space_freed_by_earlier_replacements() {
 fn esp_files_paths() {
     let k = KernelFiles { xkernel: vec![1], xkc: vec![2] };
     let paths: Vec<&str> = esp_files(b"efi", &k).iter().map(|f| f.path).collect();
-    assert_eq!(paths, ["EFI/BOOT/BOOTX64.EFI", "anathema/xkernel", "anathema/xkc.bin", "anathema/xcp.bin"]);
-    assert_eq!(esp_files(b"efi", &k)[3].data, anathema_setup::XCP);
+    assert_eq!(
+        paths,
+        ["EFI/BOOT/BOOTX64.EFI", "anathema/xkernel", "anathema/xkc.bin", "anathema/xcp.bin", "anathema/xcp2.bin", "anathema/xcp3.bin"]
+    );
+    let files = esp_files(b"efi", &k);
+    assert_eq!(files[3].data, anathema_setup::XCP);
+    assert_eq!(files[4].data, anathema_setup::XCP2);
+    assert_eq!(files[5].data, anathema_setup::XCP3);
+}
+
+/// The size limits are the ones anathema-xboot checks before it installs each stub.
+#[test]
+fn stubs_fit_the_loader() {
+    use anathema_setup::{XCP, XCP2, XCP3};
+    // tools/mkxcp.sh builds with -Os, the same 496 bytes the commpage_stub.c build gives
+    assert_eq!(XCP.len(), 0x1f0);
+    assert!((0x40..=0x3c0).contains(&XCP2.len()), "xcp2.bin is {:#x} bytes", XCP2.len());
+    assert!((0x40..=0x700).contains(&XCP3.len()), "xcp3.bin is {:#x} bytes", XCP3.len());
+    // xboot patches this placeholder with the address of the stub's store
+    let store = 0x1122_3344_5566_7788u64.to_le_bytes();
+    assert!(XCP2.windows(8).any(|w| w == store));
+}
+
+/// xcp3.bin starts kexts by bundle id, so each one has to be in the kext collection.
+#[test]
+fn kexts_xcp3_starts_are_linked() {
+    let c = kc_config(Path::new("T"), Path::new("S"), Path::new("K"));
+    let ids: Vec<String> = anathema_setup::XCP3
+        .split(|&b| b == 0)
+        .filter_map(|s| std::str::from_utf8(s).ok())
+        .filter_map(|s| s.find("com.apple.").map(|i| s[i..].to_string()))
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "com.apple.filesystems.tmpfs",
+            "com.apple.AppleFSCompression.AppleFSCompressionTypeZlib",
+            "com.apple.AppleFSCompression.AppleFSCompressionTypeDataless",
+        ]
+    );
+    for id in &ids {
+        assert!(c.roots.contains(id), "{id} is not a kext collection root");
+    }
 }
 
 #[test]
@@ -180,7 +221,10 @@ mod review_fixes {
         let k = KernelFiles { xkernel: vec![1], xkc: vec![2] };
         let files = esp_files(b"efi", &k);
         let order: Vec<&str> = update_order(&files).iter().map(|f| f.path).collect();
-        assert_eq!(order, ["anathema/xkernel", "anathema/xkc.bin", "anathema/xcp.bin", "EFI/BOOT/BOOTX64.EFI"]);
+        assert_eq!(
+            order,
+            ["anathema/xkernel", "anathema/xkc.bin", "anathema/xcp.bin", "anathema/xcp2.bin", "anathema/xcp3.bin", "EFI/BOOT/BOOTX64.EFI"]
+        );
     }
 
     fn id(model: &str, bytes: u64, parts: &[(u64, u64)]) -> StickId {
