@@ -30,6 +30,18 @@ struct Patch {
 // that is not an intel cpu ("Unsupported CPU" in cpuid_set_info).
 const AMD_PATCHES: &[Patch] = &[
     Patch {
+        va: 0xffffff80003e80ee,
+        expect: &[0x8b, 0x88, 0xdc, 0x00, 0x00, 0x00],
+        replace: &[0xb9, 0x01, 0x00, 0x00, 0x00, 0x90],
+        why: "cpu topology: the kernel is told 1 thread per package, so the shared cache must say 1 too or it divides by zero",
+    },
+    Patch {
+        va: 0xffffff80003e8102,
+        expect: &[0x8b, 0x88, 0xe0, 0x00, 0x00, 0x00],
+        replace: &[0xb9, 0x01, 0x00, 0x00, 0x00, 0x90],
+        why: "cpu topology: the kernel is told 1 thread per package, so the shared cache must say 1 too or it divides by zero",
+    },
+    Patch {
         va: 0xffff_ff80_003e_589b,
         expect: &[0x0f, 0x85, 0x04, 0x03, 0x00, 0x00],
         replace: &[0x90, 0x90, 0x90, 0x90, 0x90, 0x90],
@@ -41,6 +53,150 @@ const AMD_PATCHES: &[Patch] = &[
         expect: &[0x8b, 0x5d, 0xbc, 0x85, 0xdb, 0x75, 0x0b, 0x8b, 0x5d, 0xb8, 0x85, 0xdb],
         replace: &[0xbb, 0x40, 0x00, 0x00, 0x00, 0xeb, 0x0b, 0x90, 0x90, 0x90, 0x90, 0x90],
         why: "cpuid cache line size fallback",
+    },
+    Patch {
+        va: 0xffff_ff80_003e_5e00,
+        expect: &[0x55],
+        replace: &[0xc3],
+        why: "cpuid mitigation setup uses intel only tsx/spec ctrl msrs, return at once",
+    },
+    Patch {
+        va: 0xffffff800041bc20,
+        expect: &[0x55],
+        replace: &[0xc3],
+        why: "xcpm_bootstrap: intel xcpm power management (rapl, hwp, tsc deadline msrs) does not exist on amd, return at once",
+    },
+    Patch {
+        va: 0xffffff800041c700,
+        expect: &[0x55],
+        replace: &[0xc3],
+        why: "xcpm_init: intel xcpm power management (rapl, hwp, tsc deadline msrs) does not exist on amd, return at once",
+    },
+    Patch {
+        va: 0xffffff8000401719,
+        expect: &[0xb9, 0x98, 0x01, 0x00, 0x00, 0x0f, 0x32],
+        replace: &[0x31, 0xc0, 0x31, 0xd2, 0x90, 0x90, 0x90],
+        why: "tsc_init: rdmsr 0x198 is intel only and faults on amd, return zero (tsc ratio is patched in separately)",
+    },
+    Patch {
+        va: 0xffffff8000401755,
+        expect: &[0xb9, 0x94, 0x01, 0x00, 0x00, 0x0f, 0x32],
+        replace: &[0x31, 0xc0, 0x31, 0xd2, 0x90, 0x90, 0x90],
+        why: "tsc_init: rdmsr 0x194 is intel only and faults on amd, return zero (tsc ratio is patched in separately)",
+    },
+    Patch {
+        va: 0xffffff800040175e,
+        expect: &[0xb9, 0xce, 0x00, 0x00, 0x00, 0x0f, 0x32],
+        replace: &[0x31, 0xc0, 0x31, 0xd2, 0x90, 0x90, 0x90],
+        why: "tsc_init: rdmsr 0xce is intel only and faults on amd, return zero (tsc ratio is patched in separately)",
+    },
+    Patch {
+        va: 0xffffff80003e35c4,
+        expect: &[0x0f, 0x30],
+        replace: &[0x66, 0x90],
+        why: "cpu_syscall_init: wrmsr 0x174 SYSENTER_CS faults on amd (64 bit sysenter address), unused on x86_64",
+    },
+    Patch {
+        va: 0xffffff80003e35fe,
+        expect: &[0x0f, 0x30],
+        replace: &[0x66, 0x90],
+        why: "cpu_syscall_init: wrmsr 0x176 SYSENTER_EIP faults on amd (64 bit sysenter address), unused on x86_64",
+    },
+    Patch {
+        va: 0xffffff80003e361b,
+        expect: &[0x0f, 0x30],
+        replace: &[0x66, 0x90],
+        why: "cpu_syscall_init: wrmsr 0x175 SYSENTER_ESP faults on amd (64 bit sysenter address), unused on x86_64",
+    },
+    Patch {
+        va: 0xffff_ff80_003e_5a89,
+        expect: &[0x0f, 0x32, 0x09, 0xc2],
+        replace: &[0x31, 0xc0, 0x31, 0xd2],
+        why: "core thread count msr 0x35 is intel only, report 1 core 1 thread",
+    },
+    Patch {
+        va: 0xffff_ff80_003e_5aa5,
+        expect: &[0x0f, 0x32, 0x09, 0xc2],
+        replace: &[0x31, 0xc0, 0x31, 0xd2],
+        why: "core thread count msr 0x35 is intel only, report 1 core 1 thread",
+    },
+    Patch {
+        va: 0xffffff8000401ffc,
+        expect: &[0xb9, 0xa0, 0x01, 0x00, 0x00, 0x0f, 0x32],
+        replace: &[0x66, 0x90, 0x66, 0x90, 0x66, 0x90, 0x90],
+        why: "commpage_populate: remove rdmsr 0x1a0 (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003e65e3,
+        expect: &[0xb8, 0x04, 0x00, 0x00, 0x00, 0x44, 0x89, 0xf1, 0x44, 0x89],
+        replace: &[0xb8, 0x1d, 0x00, 0x00, 0x80, 0x44, 0x89, 0xf1, 0x44, 0x89],
+        why: "cpuid_set_cache_info: use leaf 0x8000001d instead of 4 (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003e4ac5,
+        expect: &[0xb9, 0x8b, 0x00, 0x00, 0x00, 0x31, 0xc0, 0x31, 0xd2, 0x0f, 0x30],
+        replace: &[0x66, 0x90, 0x66, 0x90, 0x66, 0x90, 0x66, 0x90, 0x66, 0x90, 0x90],
+        why: "cpuid_set_generic_info: remove wrmsr 0x8b (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003e4b0d,
+        expect: &[0xb9, 0x8b, 0x00, 0x00, 0x00, 0x0f, 0x32],
+        replace: &[0xba, 0xba, 0x00, 0x00, 0x00, 0x66, 0x90],
+        why: "cpuid_set_generic_info: rdmsr 0x8b -> constant (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003e4b85,
+        expect: &[0xb9, 0x17, 0x00, 0x00, 0x00, 0x0f, 0x32, 0xc1, 0xea, 0x12, 0x80, 0xe2, 0x07],
+        replace: &[0xb2, 0x01, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x90],
+        why: "cpuid_set_generic_info: platform id flag = 1 (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003e4ec4,
+        expect: &[0x00, 0x05, 0x0f, 0x82],
+        replace: &[0x00, 0x00, 0x0f, 0x82],
+        why: "cpuid_set_generic_info: allow leaf 7 (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003e58a5,
+        expect: &[0x80, 0x3d, 0xa0, 0x88, 0xcd, 0x00, 0x06, 0x75],
+        replace: &[0xba, 0xbc, 0x4f, 0xea, 0x78, 0x31, 0xdb, 0xeb],
+        why: "cpuid_set_cpufamily: force PENRYN (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff80003f04b4,
+        expect: &[0xb9, 0x99, 0x01, 0x00, 0x00, 0x0f, 0x32, 0x48, 0xc1, 0xe2, 0x20, 0x89, 0xc6, 0x48, 0x09, 0xd6, 0xb9, 0x98, 0x01, 0x00, 0x00, 0x0f, 0x32, 0x48, 0xc1, 0xe2, 0x20, 0x89, 0xc0, 0x48, 0x09, 0xc2, 0xbf, 0x58, 0x02, 0x31, 0x05, 0x31, 0xc9, 0x45, 0x31, 0xc0],
+        replace: &[0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00],
+        why: "i386_vm_init: remove 3 rdmsr (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff8000b0290b,
+        expect: &[0xb9, 0x99, 0x01, 0x00, 0x00, 0x0f, 0x32, 0x48, 0xc1, 0xe2, 0x20, 0x89, 0xc6, 0x48, 0x09, 0xd6, 0xb9, 0x98, 0x01, 0x00, 0x00, 0x0f, 0x32, 0x48, 0xc1, 0xe2, 0x20, 0x89, 0xc0, 0x48, 0x09, 0xc2, 0xbf, 0x58, 0x02, 0x31, 0x05, 0x31, 0xc9, 0x45, 0x31, 0xc0],
+        replace: &[0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00],
+        why: "i386_init: remove 3 rdmsr (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff8000b02deb,
+        expect: &[0xb9, 0x99, 0x01, 0x00, 0x00, 0x0f, 0x32, 0x48, 0xc1, 0xe2, 0x20, 0x89, 0xc6, 0x48, 0x09, 0xd6, 0xb9, 0x98, 0x01, 0x00, 0x00, 0x0f, 0x32, 0x48, 0xc1, 0xe2, 0x20, 0x89, 0xc0, 0x48, 0x09, 0xc2, 0xbf, 0x58, 0x02, 0x31, 0x05, 0x31, 0xc9, 0x45, 0x31, 0xc0],
+        replace: &[0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00],
+        why: "i386_init: remove 3 rdmsr #2 (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff800040645a,
+        expect: &[0x25, 0xfc, 0x00, 0x00, 0x00, 0x83, 0xf8, 0x13],
+        replace: &[0x25, 0xfc, 0x00, 0x00, 0x00, 0x0f, 0x1f, 0x00],
+        why: "remove version check and panic (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff800040dcba,
+        expect: &[0x89, 0xc0, 0x81, 0xe2, 0xff, 0xff, 0x00, 0xff, 0x81, 0xca, 0x00, 0x00, 0x01, 0x00, 0x0f, 0x30],
+        replace: &[0x89, 0xc0, 0xb8, 0x06, 0x01, 0x07, 0x00, 0xba, 0x06, 0x01, 0x07, 0x00, 0x0f, 0x30, 0x90, 0x90],
+        why: "mtrr_update_action: fix PAT (amd_vanilla)",
+    },
+    Patch {
+        va: 0xffffff800040e34a,
+        expect: &[0x89, 0xc0, 0x81, 0xe2, 0xff, 0xff, 0x00, 0xff, 0x81, 0xca, 0x00, 0x00, 0x01, 0x00, 0x0f, 0x30],
+        replace: &[0x89, 0xc0, 0xb8, 0x06, 0x01, 0x07, 0x00, 0xba, 0x06, 0x01, 0x07, 0x00, 0x0f, 0x30, 0x90, 0x90],
+        why: "mtrr_update_action: fix PAT #2 (amd_vanilla)",
     },
 ];
 
@@ -241,6 +397,109 @@ fn random_seed() -> [u8; 64] {
     out
 }
 
+fn acpi_sum(b: &[u8]) -> u8 {
+    0u8.wrapping_sub(b.iter().fold(0u8, |a, &x| a.wrapping_add(x)))
+}
+
+unsafe fn acpi_table(at: u64) -> &'static [u8] {
+    let len = core::ptr::read_unaligned((at + 4) as *const u32) as usize;
+    core::slice::from_raw_parts(at as *const u8, len.min(0x40_0000))
+}
+
+// b550/a520 firmware declares cpus only as ACPI0007 devices under \_SB.PLTF, macos needs Processor objects.
+// same fix as dortania's ssdt-cpur: add one ssdt with a Processor per thread, through a new xsdt.
+fn add_amd_cpu_ssdt(force: bool) {
+    let Some(st) = uefi::table::system_table_raw() else { return };
+    const ACPI20: [u8; 16] = [0x71, 0xe8, 0x68, 0x88, 0xf1, 0xe4, 0xd3, 0x11, 0xbc, 0x22, 0x00, 0x80, 0xc7, 0x3c, 0x88, 0x81];
+    unsafe {
+        let src = st.as_ptr() as *const u8;
+        let n = core::ptr::read_unaligned(src.add(104) as *const u64) as usize;
+        let cfg = core::ptr::read_unaligned(src.add(112) as *const u64) as *const u8;
+        let mut rsdp = 0u64;
+        for i in 0..n.min(64) {
+            let e = cfg.add(i * 24);
+            if core::slice::from_raw_parts(e, 16) == ACPI20 {
+                rsdp = core::ptr::read_unaligned(e.add(16) as *const u64);
+            }
+        }
+        if rsdp == 0 || *((rsdp + 15) as *const u8) < 2 {
+            println!("acpi: no 2.0 root pointer, cpu table not added");
+            return;
+        }
+        let xsdt = acpi_table(core::ptr::read_unaligned((rsdp + 24) as *const u64));
+        let mut has_processor = false;
+        let mut threads = 0usize;
+        for e in xsdt[36..].chunks_exact(8) {
+            let at = u64::from_le_bytes(e.try_into().unwrap());
+            let t = acpi_table(at);
+            let mut aml: &[u8] = &[];
+            if &t[..4] == b"SSDT" {
+                aml = t;
+            } else if &t[..4] == b"FACP" && t.len() >= 148 {
+                let x = u64::from_le_bytes(t[140..148].try_into().unwrap());
+                let d = if x != 0 { x } else { u32::from_le_bytes(t[40..44].try_into().unwrap()) as u64 };
+                aml = acpi_table(d);
+            }
+            if aml.len() <= 36 {
+                continue;
+            }
+            let body = &aml[36..];
+            has_processor |= body.windows(2).any(|w| w == [0x5b, 0x83]);
+            let found = body.windows(8).filter(|w| *w == b"ACPI0007").count();
+            if found > 0 && body.windows(4).any(|w| w == b"PLTF") && body.windows(4).any(|w| w == b"C000") {
+                threads = found.min(32);
+            }
+        }
+        if threads == 0 || (has_processor && !force) {
+            println!("acpi: cpu table not needed (processor objects {}, pltf cpus {})", has_processor, threads);
+            return;
+        }
+        let hex = b"0123456789ABCDEF";
+        let mut scope: Vec<u8> = b"\\_SB_".to_vec();
+        for i in 0..threads {
+            scope.extend_from_slice(&[0x5b, 0x83, 27, b'P', b'R', b'0' + (i / 10) as u8, b'0' + (i % 10) as u8, i as u8, 0x10, 0x08, 0, 0, 6]);
+            scope.extend_from_slice(&[0xa4, b'\\', 0x2f, 3]);
+            scope.extend_from_slice(b"_SB_PLTFC0");
+            scope.extend_from_slice(&[hex[i >> 4], hex[i & 15]]);
+        }
+        let plen = scope.len() + 2;
+        let mut ssdt = vec![0u8; 36];
+        ssdt[..4].copy_from_slice(b"SSDT");
+        ssdt[8] = 2;
+        ssdt[10..16].copy_from_slice(b"ANTHMA");
+        ssdt[16..24].copy_from_slice(b"CPUR    ");
+        ssdt[24] = 1;
+        ssdt[28..32].copy_from_slice(b"ANTH");
+        ssdt[32] = 1;
+        ssdt.extend_from_slice(&[0x10, 0x40 | (plen & 15) as u8, (plen >> 4) as u8]);
+        ssdt.extend_from_slice(&scope);
+        let l = ssdt.len() as u32;
+        ssdt[4..8].copy_from_slice(&l.to_le_bytes());
+        ssdt[9] = acpi_sum(&ssdt);
+        let ssdt_off = align_up((xsdt.len() + 8) as u64, 64) as usize;
+        let total = ssdt_off + ssdt.len();
+        let Ok(mem) = boot::allocate_pages(AllocateType::MaxAddress(0xffff_ffff), MemoryType::ACPI_RECLAIM, pages(total as u64)) else {
+            println!("acpi: no memory for the cpu table");
+            return;
+        };
+        let base = mem.as_ptr() as u64;
+        let mut nx = xsdt.to_vec();
+        nx.extend_from_slice(&(base + ssdt_off as u64).to_le_bytes());
+        let l = nx.len() as u32;
+        nx[4..8].copy_from_slice(&l.to_le_bytes());
+        nx[9] = 0;
+        nx[9] = acpi_sum(&nx);
+        core::ptr::copy_nonoverlapping(nx.as_ptr(), base as *mut u8, nx.len());
+        core::ptr::copy_nonoverlapping(ssdt.as_ptr(), (base as usize + ssdt_off) as *mut u8, ssdt.len());
+        core::ptr::write_unaligned((rsdp + 24) as *mut u64, base);
+        *((rsdp + 32) as *mut u8) = 0;
+        let sum = acpi_sum(core::slice::from_raw_parts(rsdp as *const u8, 36));
+        *((rsdp + 32) as *mut u8) = sum;
+        let now = core::ptr::read_unaligned((rsdp + 24) as *const u64);
+        println!("acpi: added cpu table for {} threads at {:#x}, root pointer updated {}", threads, base, now == base);
+    }
+}
+
 fn device_tree() -> Vec<u8> {
     let memory_map = node(&[("name", b"memory-map\0")], &[]);
     let seed = random_seed();
@@ -421,6 +680,9 @@ unsafe fn install_amfi_standin(va: u64) {
 }
 
 static mut CP_STORE_VA: u64 = 0;
+const LOG_PA: u64 = 0x400_0000;
+static mut FB_BASE: u64 = 0;
+static mut FB_STRIDE: u64 = 0;
 static mut SBX_VA: u64 = 0;
 
 unsafe fn install_kc(blob: &[u8]) {
@@ -554,6 +816,101 @@ unsafe fn install_loadkexts(blob: &[u8]) {
     com1("anathema-xboot: loadkexts hook installed\n");
 }
 
+// early-boot progress markers: tiny kernel hooks paint colored bands on the framebuffer, so a photo shows how far
+// the kernel got on hardware without a serial port (see tools/mkmark.py for the blob format)
+unsafe fn install_markers(blob: &[u8]) {
+    if FB_BASE == 0 || blob.len() < 8 || rd32(blob, 0) != 0x4b52_414d {
+        return;
+    }
+    let count = rd32(blob, 4) as usize;
+    let mut o = 8usize;
+    let stride = FB_STRIDE;
+    for _ in 0..count {
+        let site = rd64(blob, o);
+        let slen = blob[o + 8] as usize;
+        let mut expect = [0u8; 8];
+        expect.copy_from_slice(&blob[o + 9..o + 17]);
+        let cave = rd64(blob, o + 17);
+        let clen = u16::from_le_bytes([blob[o + 25], blob[o + 26]]) as usize;
+        o += 27;
+        let mut buf = [0u8; 160];
+        if clen > buf.len() {
+            return;
+        }
+        buf[..clen].copy_from_slice(&blob[o..o + clen]);
+        o += clen;
+        let mut i = 0;
+        while i + 4 <= clen {
+            let v4 = u32::from_le_bytes([buf[i], buf[i + 1], buf[i + 2], buf[i + 3]]);
+            if v4 == 0xdead_0001 {
+                buf[i..i + 4].copy_from_slice(&((6 * stride) as u32).to_le_bytes());
+                i += 4;
+                continue;
+            }
+            if v4 & 0xffff_ff00 == 0x3322_1100 {
+                let k = (v4 & 0xff) as u64;
+                let v = (FB_BASE + (k * 10 + 4) * stride * 4) as u32;
+                buf[i..i + 4].copy_from_slice(&v.to_le_bytes());
+                i += 4;
+                continue;
+            }
+            if i + 8 <= clen {
+                let mut e = [0u8; 8];
+                e.copy_from_slice(&buf[i..i + 8]);
+                let v8 = u64::from_le_bytes(e);
+                if v8 & 0xffff_ffff_ffff_0000 == 0x5566_7788_99aa_0000 {
+                    let k = (v8 >> 8) & 0xff;
+                    let v = KBASE + LOG_PA + k;
+                    buf[i..i + 8].copy_from_slice(&v.to_le_bytes());
+                    i += 8;
+                    continue;
+                }
+                if v8 & 0xffff_ffff_ffff_0000 == 0x1122_3344_5566_0000 {
+                    let k = (v8 >> 8) & 0xff;
+                    let mode = v8 & 0xff;
+                    let mut v = FB_BASE + (k * 10 + 4) * stride * 4;
+                    if mode == 1 {
+                        v += KBASE;
+                    }
+                    buf[i..i + 8].copy_from_slice(&v.to_le_bytes());
+                    i += 8;
+                    continue;
+                }
+            }
+            i += 1;
+        }
+        let sp = site as *mut u8;
+        let mut same = true;
+        for k in 0..slen.min(8) {
+            if *sp.add(k) != expect[k] {
+                same = false;
+            }
+        }
+        if !same {
+            com1(&alloc::format!("xmark: skipped site {:#x} (bytes differ)\n", site));
+            continue;
+        }
+        core::ptr::copy_nonoverlapping(buf.as_ptr(), cave as *mut u8, clen);
+        let rel = (cave as i64 - (site as i64 + 5)) as i32;
+        *sp = 0xe9;
+        core::ptr::copy_nonoverlapping(rel.to_le_bytes().as_ptr(), sp.add(1), 4);
+        for k in 5..slen {
+            *sp.add(k) = 0x90;
+        }
+    }
+    com1("anathema-xboot: early markers installed\n");
+}
+
+unsafe fn paint_band(row: u64, color: u32) {
+    if FB_BASE == 0 {
+        return;
+    }
+    let p = (FB_BASE + row * FB_STRIDE * 4) as *mut u32;
+    for i in 0..(6 * FB_STRIDE) {
+        *p.add(i as usize) = color;
+    }
+}
+
 unsafe fn install_commpage(blob: &[u8]) {
     let n = blob.len().min(0x400);
     core::ptr::copy_nonoverlapping(blob.as_ptr(), CP_PA as *mut u8, n);
@@ -684,44 +1041,51 @@ fn pages(bytes: u64) -> usize {
     (align_up(bytes, 4096) / 4096) as usize
 }
 
+core::arch::global_asm!(
+    ".global anx_tramp_start",
+    ".global anx_tramp_end",
+    "anx_tramp_start:",
+    "cli",
+    "mov cr3, rdx",
+    "lgdt [rcx]",
+    "lea rax, [rip + 2f]",
+    "push 0x08",
+    "push rax",
+    "retfq",
+    ".code32",
+    "2:",
+    "mov ax, 0x10",
+    "mov ds, ax",
+    "mov es, ax",
+    "mov ss, ax",
+    "mov fs, ax",
+    "mov gs, ax",
+    "mov eax, cr0",
+    "and eax, 0x7fffffff",
+    "mov cr0, eax",
+    "mov ecx, 0xC0000080",
+    "rdmsr",
+    "and eax, 0xfffffeff",
+    "wrmsr",
+    "mov eax, cr4",
+    "and eax, 0xffffffdf",
+    "mov cr4, eax",
+    "mov eax, edi",
+    "jmp esi",
+    ".code64",
+    "anx_tramp_end:",
+);
+
+unsafe extern "C" {
+    static anx_tramp_start: u8;
+    static anx_tramp_end: u8;
+}
+
+static mut TRAMP: *mut u8 = core::ptr::null_mut();
+
 unsafe fn handoff(pml4: u64, gdtr: u64, entry: u32, bootargs: u32) -> ! {
-    asm!(
-        "cli",
-        "mov cr3, {pml4}",
-        "lgdt [{gdtr}]",
-        "lea {t}, [rip + 2f]",
-        "push 0x08",
-        "push {t}",
-        "retfq",
-        ".code32",
-        "2:",
-        "mov ax, 0x10",
-        "mov ds, ax",
-        "mov es, ax",
-        "mov ss, ax",
-        "mov fs, ax",
-        "mov gs, ax",
-        "mov eax, cr0",
-        "and eax, 0x7fffffff",
-        "mov cr0, eax",
-        "mov ecx, 0xC0000080",
-        "rdmsr",
-        "and eax, 0xfffffeff",
-        "wrmsr",
-        "mov eax, cr4",
-        "and eax, 0xffffffdf",
-        "mov cr4, eax",
-        "mov eax, edi",
-        "jmp esi",
-        ".code64",
-        pml4 = in(reg) pml4,
-        gdtr = in(reg) gdtr,
-        t = out(reg) _,
-        in("rsi") entry as u64,
-        in("rdi") bootargs as u64,
-        options(nostack)
-    );
-    loop {}
+    let f: extern "sysv64" fn(u64, u64, u64, u64) -> ! = core::mem::transmute(TRAMP);
+    f(bootargs as u64, entry as u64, pml4, gdtr)
 }
 
 fn fail(msg: &str) -> Status {
@@ -737,6 +1101,20 @@ fn fail(msg: &str) -> Status {
 fn main() -> Status {
     let _ = boot::set_watchdog_timer(0, 0x10000, None);
     println!("anathema-xboot: native x86_64 macOS kernel loader");
+    let mut prev_trail = String::new();
+    unsafe {
+        let mut v: u8;
+        asm!("out dx, al", in("dx") 0x70u16, in("al") 1u8, options(nomem, nostack));
+        asm!("in al, dx", out("al") v, in("dx") 0x71u16, options(nomem, nostack));
+        asm!("out dx, al", in("dx") 0x70u16, in("al") 1u8, options(nomem, nostack));
+        asm!("out dx, al", in("dx") 0x71u16, in("al") 0u8, options(nomem, nostack));
+        if v == 0 {
+            println!("previous boot trail: none");
+        } else {
+            println!("previous boot trail: last marker {}", v);
+            prev_trail = alloc::format!("last marker {}", v);
+        }
+    }
     com1("anathema-xboot: start\n");
 
     let fs_proto = match boot::get_image_file_system(boot::image_handle()) {
@@ -777,11 +1155,23 @@ fn main() -> Status {
     } else {
         0
     };
-    let kext_blob: Vec<u8> = fs.read(cstr16!("\\anathema\\xkc.bin")).unwrap_or_default();
+    let mut kext_blob: Vec<u8> = fs.read(cstr16!("\\anathema\\xkc.bin")).unwrap_or_default();
+    if want_amd_patch {
+        // iopcifamily probeBusGated: never turn on pcie 10-bit tags, amd_vanilla needs this on b550/x570
+        const SIG: [u8; 12] = [0x0f, 0xba, 0xe3, 0x11, 0x73, 0x4a, 0x48, 0x8b, 0x41, 0x78, 0x48, 0x8b];
+        let hits: Vec<usize> = kext_blob.windows(SIG.len()).enumerate().filter(|(_, w)| *w == SIG).map(|(i, _)| i).collect();
+        if hits.len() == 1 {
+            kext_blob[hits[0] + 4] = 0xeb;
+            println!("amd: pci 10-bit tags disabled");
+        } else {
+            println!("amd: pci 10-bit tag site found {} times, not patched", hits.len());
+        }
+    }
     let have_kext = kext_blob.len() > 32 && rd64(&kext_blob, 0) == 0x434b_5841_4e41;
     let cp_blob: Vec<u8> = fs.read(cstr16!("\\anathema\\xcp.bin")).unwrap_or_default();
     let cp2_blob: Vec<u8> = fs.read(cstr16!("\\anathema\\xcp2.bin")).unwrap_or_default();
     let cp3_blob: Vec<u8> = fs.read(cstr16!("\\anathema\\xcp3.bin")).unwrap_or_default();
+    let mark_blob: Vec<u8> = fs.read(cstr16!("\\anathema\\xmark.bin")).unwrap_or_default();
     let kern = match parse(&kernel_file) {
         Ok(k) => k,
         Err(e) => return fail(e),
@@ -789,6 +1179,9 @@ fn main() -> Status {
     println!("kernel: {} segments, entry {:#x}, image end {:#x}", kern.segs.len(), kern.entry_pa, kern.end_pa);
 
     let base = align_up(kern.end_pa, 4096);
+    if want_amd_patch {
+        add_amd_cpu_ssdt(fs.read(cstr16!("\\anathema\\xacpiforce")).is_ok());
+    }
     let dt = device_tree();
     let boot_args_pa = base;
     let dt_pa = base + 0x1000;
@@ -828,6 +1221,18 @@ fn main() -> Status {
         Err(_) => return fail("cannot allocate page tables"),
     };
     let tables = table_ptr as u64;
+    unsafe {
+        let start = core::ptr::addr_of!(anx_tramp_start) as usize;
+        let end = core::ptr::addr_of!(anx_tramp_end) as usize;
+        match boot::allocate_pages(AllocateType::MaxAddress(0xffff_ffff), MemoryType::LOADER_CODE, 1) {
+            Ok(pg) => {
+                TRAMP = pg.as_ptr();
+                core::ptr::copy_nonoverlapping(start as *const u8, TRAMP, end - start);
+            }
+            Err(_) => return fail("no low page for the handoff code"),
+        }
+        println!("image code at {:#x}, handoff code at {:#x}", start, TRAMP as usize);
+    }
     if tables < ksize_end {
         return fail("page tables landed inside the load area");
     }
@@ -870,9 +1275,11 @@ fn main() -> Status {
     ba[1256..1264].copy_from_slice(&(KBASE + kc_pa).to_le_bytes());
     ba[1104..1108].copy_from_slice(&((est_pa) as u32).to_le_bytes());
 
+    let mut fb_note = String::from("framebuffer: no graphics output protocol found");
     // uefi framebuffer -> boot_args.Video so the kernel's console draws on the real screen
     if let Ok(h) = boot::get_handle_for_protocol::<uefi::proto::console::gop::GraphicsOutput>() {
-        if let Ok(mut gop) = boot::open_protocol_exclusive::<uefi::proto::console::gop::GraphicsOutput>(h) {
+        let params = boot::OpenProtocolParams { handle: h, agent: boot::image_handle(), controller: None };
+        if let Ok(mut gop) = unsafe { boot::open_protocol::<uefi::proto::console::gop::GraphicsOutput>(params, boot::OpenProtocolAttributes::GetProtocol) } {
             let info = gop.current_mode_info();
             let (w, hgt) = info.resolution();
             let stride = info.stride();
@@ -885,16 +1292,58 @@ fn main() -> Status {
                 ba[1060..1064].copy_from_slice(&(w as u32).to_le_bytes());
                 ba[1064..1068].copy_from_slice(&(hgt as u32).to_le_bytes());
                 ba[1068..1072].copy_from_slice(&32u32.to_le_bytes());
+                unsafe {
+                    FB_BASE = fb;
+                    FB_STRIDE = stride as u64;
+                }
                 println!("framebuffer: {}x{} stride {} at {:#x}", w, hgt, stride, fb);
+                fb_note = alloc::format!("framebuffer: {}x{} stride {} at {:#x} (passed to kernel)", w, hgt, stride, fb);
             } else {
                 println!("framebuffer above 4 GB or missing, not passed ({:#x})", fb);
+                fb_note = alloc::format!("framebuffer: {}x{} at {:#x} is above 4 GB or missing, NOT passed to kernel", w, hgt, fb);
             }
         }
     }
     if !args.is_empty() {
         println!("command line: {}", args);
     }
-    println!("leaving boot services");
+    let mut hw = String::new();
+    unsafe {
+        let rdm = |msr: u32| -> u64 {
+            let lo: u32;
+            let hi: u32;
+            asm!("rdmsr", in("ecx") msr, out("eax") lo, out("edx") hi, options(nomem, nostack));
+            ((hi as u64) << 32) | lo as u64
+        };
+        let cr0: u64;
+        let cr3: u64;
+        let cr4: u64;
+        asm!("mov {}, cr0", out(reg) cr0, options(nomem, nostack));
+        asm!("mov {}, cr3", out(reg) cr3, options(nomem, nostack));
+        asm!("mov {}, cr4", out(reg) cr4, options(nomem, nostack));
+        hw.push_str(&alloc::format!("cr0 {:#x} cr3 {:#x} cr4 {:#x}\n", cr0, cr3, cr4));
+        for (n, m) in [("APIC_BASE", 0x1bu32), ("EFER", 0xc000_0080), ("PAT", 0x277), ("MTRRdefType", 0x2ff), ("SYSCFG", 0xc001_0010), ("HWCR", 0xc001_0015), ("TSC_AUX", 0xc000_0103)] {
+            hw.push_str(&alloc::format!("msr {} = {:#x}\n", n, rdm(m)));
+        }
+        for (l, s) in [(0u32, 0u32), (1, 0), (7, 0), (0xb, 0), (0xb, 1), (0x8000_0001, 0), (0x8000_0008, 0), (0x8000_001e, 0)] {
+            let r = core::arch::x86_64::__cpuid_count(l, s);
+            hw.push_str(&alloc::format!("cpuid {:#x}.{} = {:#x} {:#x} {:#x} {:#x}\n", l, s, r.eax, r.ebx, r.ecx, r.edx));
+        }
+    }
+    if let Ok(mm) = boot::memory_map(MemoryType::LOADER_DATA) {
+        use uefi::mem::memory_map::MemoryMap;
+        hw.push_str(&alloc::format!("memory map entries: {}\n", mm.entries().count()));
+        for e in mm.entries() {
+            hw.push_str(&alloc::format!("  type {:?} phys {:#x} pages {:#x} attr {:#x}\n", e.ty, e.phys_start, e.page_count, e.att.bits()));
+        }
+    }
+    let blog = alloc::format!(
+        "anathema-xboot boot log\nprevious boot trail: {}\ncommand line: {}\n{}\nkernel entry {:#x}\n{}leaving boot services next\n",
+        prev_trail, args, fb_note, kern.entry_pa, hw
+    );
+    let _ = fs.write(cstr16!("\\anathema\\boot.log"), blog.as_bytes());
+    println!("leaving boot services (pausing 4 s)");
+    boot::stall(4_000_000);
     com1("anathema-xboot: exiting boot services\n");
 
     let mmap = unsafe { boot::exit_boot_services(Some(MemoryType::LOADER_DATA)) };
@@ -950,6 +1399,9 @@ fn main() -> Status {
         if !cp3_blob.is_empty() {
             install_loadkexts(&cp3_blob);
         }
+        if !mark_blob.is_empty() {
+            install_markers(&mark_blob);
+        }
         let empty: &[Patch] = &[];
         let lists: [&[Patch]; 4] = [
             EARLY_VM_PATCHES,
@@ -985,6 +1437,31 @@ fn main() -> Status {
         core::ptr::copy_nonoverlapping(kc.as_ptr(), kc_pa as *mut u8, kc.len());
         core::ptr::copy_nonoverlapping(est.as_ptr(), est_pa as *mut u8, est.len());
         core::ptr::copy_nonoverlapping(raw.as_ptr(), mmap_pa as *mut u8, copy_len);
+        {
+            let ds = meta.desc_size;
+            let n = copy_len / ds;
+            let bp = mmap_pa as *mut u8;
+            let mut tmp = [0u8; 128];
+            if ds <= tmp.len() {
+                for i in 1..n {
+                    let mut j = i;
+                    while j > 0 {
+                        let a = bp.add((j - 1) * ds);
+                        let b = bp.add(j * ds);
+                        let ka = core::ptr::read_unaligned(a.add(8) as *const u64);
+                        let kb = core::ptr::read_unaligned(b.add(8) as *const u64);
+                        if ka > kb {
+                            core::ptr::copy_nonoverlapping(a, tmp.as_mut_ptr(), ds);
+                            core::ptr::copy_nonoverlapping(b, a, ds);
+                            core::ptr::copy_nonoverlapping(tmp.as_ptr(), b, ds);
+                            j -= 1;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         let mut o = 0usize;
         while o + 32 <= copy_len {
             let ap = (mmap_pa as usize + o + 32) as *mut u64;
@@ -999,5 +1476,6 @@ fn main() -> Status {
         core::ptr::copy_nonoverlapping(ba.as_ptr(), boot_args_pa as *mut u8, 4096);
     }
     com1("anathema-xboot: kernel copied, jumping\n");
+    unsafe { paint_band(4, 0x00ff_00ff); }
     unsafe { handoff(pml4_pa, gdtr_pa, kern.entry_pa as u32, boot_args_pa as u32) }
 }
