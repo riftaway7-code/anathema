@@ -1322,7 +1322,9 @@ fn main() -> Status {
         asm!("mov {}, cr3", out(reg) cr3, options(nomem, nostack));
         asm!("mov {}, cr4", out(reg) cr4, options(nomem, nostack));
         hw.push_str(&alloc::format!("cr0 {:#x} cr3 {:#x} cr4 {:#x}\n", cr0, cr3, cr4));
-        for (n, m) in [("APIC_BASE", 0x1bu32), ("EFER", 0xc000_0080), ("PAT", 0x277), ("MTRRdefType", 0x2ff), ("SYSCFG", 0xc001_0010), ("HWCR", 0xc001_0015), ("TSC_AUX", 0xc000_0103)] {
+        // the last three are amd msrs (tsc_aux also needs rdtscp): reading them on intel faults
+        let msrs = [("APIC_BASE", 0x1bu32), ("EFER", 0xc000_0080), ("PAT", 0x277), ("MTRRdefType", 0x2ff), ("SYSCFG", 0xc001_0010), ("HWCR", 0xc001_0015), ("TSC_AUX", 0xc000_0103)];
+        for &(n, m) in &msrs[..if is_amd { msrs.len() } else { 4 }] {
             hw.push_str(&alloc::format!("msr {} = {:#x}\n", n, rdm(m)));
         }
         for (l, s) in [(0u32, 0u32), (1, 0), (7, 0), (0xb, 0), (0xb, 1), (0x8000_0001, 0), (0x8000_0008, 0), (0x8000_001e, 0)] {
