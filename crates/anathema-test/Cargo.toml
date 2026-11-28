@@ -1,0 +1,14 @@
+[package]
+name = "anathema-test"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Cross-platform automated test, KDK/ESP setup, QEMU boot, and report runner for Anathema"
+
+[[bin]]
+name = "anathema-test"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"

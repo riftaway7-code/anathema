@@ -7,6 +7,7 @@ members = [
     "crates/anathema-media",
     "crates/anathema-rt",
     "crates/anathema-setup",
+    "crates/anathema-test",
     "crates/anathema-xlat",
     "crates/anathema-xboot",
 ]

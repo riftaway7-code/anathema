@@ -173,7 +173,7 @@ fn header_layout() {
     let p = &x[64 + poff as usize..64 + (poff + plen) as usize];
     assert!(p.starts_with(b"<?xml version=\"1.0\""));
     assert_eq!(p.last(), Some(&0));
-    assert_eq!(out.map, format!("com.test.a {BASE:#x} 0x8000 {}\n", ext.join("A.kext/Contents/MacOS/A").display()));
+    assert_eq!(out.map, format!("com.test.a {BASE:#x} 0x8000 {}\n", ext.join("A.kext").join("Contents").join("MacOS").join("A").display()));
     let text = out.report.to_string();
     assert!(text.starts_with("kexts selected: 1 (with code: 1)\nblock 0x8000 bytes, plist "), "{text}");
     assert!(text.contains("relocs: {'ext64': 0, 'branch': 0, 'rebase': 0}\ncorecrypto start 0x0 kmod 0x0\n"), "{text}");
