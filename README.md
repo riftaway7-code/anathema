@@ -55,8 +55,8 @@ The loader gives the kernel what a Mac's firmware normally would (a fake EFI env
 cargo build --release -p anathema-xboot --target x86_64-unknown-uefi
 # result: target/x86_64-unknown-uefi/release/anathema-xboot.efi
 
-# host unit tests; the two UEFI crates can't build for the host, so leave them out
-cargo test --workspace --exclude anathema-boot --exclude anathema-xboot
+# host unit tests (the UEFI crates are left out by default)
+cargo test
 ```
 
 The unit tests need no Apple software. A few tests that need a real KDK or the network are marked `#[ignore]`.

@@ -10,6 +10,16 @@ members = [
     "crates/anathema-xlat",
     "crates/anathema-xboot",
 ]
+# the two UEFI crates only build for x86_64-unknown-uefi; plain `cargo test` / `cargo build` use
+# the host crates. build the loaders with `-p anathema-xboot --target x86_64-unknown-uefi`.
+default-members = [
+    "crates/anathema-hwcheck",
+    "crates/anathema-kc",
+    "crates/anathema-media",
+    "crates/anathema-rt",
+    "crates/anathema-setup",
+    "crates/anathema-xlat",
+]
 
 [profile.release]
 opt-level = "s"

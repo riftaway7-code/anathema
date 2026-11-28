@@ -63,7 +63,7 @@ Yes. The loader cross-compiles to UEFI on any machine, including Apple silicon M
 
 ```
 cargo build --release -p anathema-xboot --target x86_64-unknown-uefi
-cargo test --workspace --exclude anathema-boot --exclude anathema-xboot
+cargo test
 ```
 
 `tools/xrun_esp.sh` boots a stick image in QEMU on macOS or Linux.
@@ -130,7 +130,7 @@ MIT, with one exception: `crates/anathema-rt/src/aesdev.rs` follows the behaviou
 ### How can I help with code?
 
 * Read the [Where it stands section](README.md#where-it-stands) for the current problem, and pick a task from [TODO.md](TODO.md).
-* Run the tests (`cargo test --workspace --exclude anathema-boot --exclude anathema-xboot`) and add more. Parsers and the kext collection linker are good places to start.
+* Run the tests (`cargo test`) and add more. Parsers and the kext collection linker are good places to start.
 * Open an issue before big changes, so work doesn't overlap.
 
 ### How do I follow along?
