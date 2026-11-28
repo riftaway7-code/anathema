@@ -6,26 +6,32 @@ Boot **macOS 27** on a regular PC with **our own boot loader**. No OpenCore. Ana
 
 **This is fully vibe coded.** Every line was written by an AI (Claude Code) under human direction. It has bugs, it has not been audited, and a lot of it was found by trial and error against a real macOS kernel. Read it as a research log that happens to work.
 
-## Where it stands (updated 2026-11-24)
+## Where it stands
 
-Everything below was tested in QEMU (UEFI, USB stick, SATA and NVMe disks). **Nothing has been tried on a real PC yet except the early loader bring-up.**
+Updated 2026-11-28.
+
+Most of what follows was tested in QEMU (UEFI, USB stick, SATA and NVMe disks). First tests on a real PC (AMD Ryzen) have started: there the kernel boots and launchd and most daemons start, but WindowServer does not, so **there is no installer screen yet**.
+
+Open blocker:
+
+* **WindowServer does not start on real hardware.** launchd's `posix_spawn` of WindowServer fails with errno 2 (`ENOENT`). The suspected cause is a mismatch: the macOS 27 kernel running with a userspace from a different build. This is not confirmed yet.
 
 Working:
 
 * **Own UEFI loader** (`crates/anathema-xboot`) starts the macOS 27.2 Intel kernel (`xnu-13432.41.4`, build 26B131) from a USB stick: memory map, device tree, boot args, patches, and the UEFI framebuffer for on-screen boot text.
-* **Kext collection built by us** (`tools/kcbuild.py`, Rust port in an open PR): links Apple's Intel kexts from the Tahoe and macOS 27 KDKs into one block the kernel loads. Storage (AHCI, NVMe, USB mass storage), USB, ACPI, APFS/HFS+, tmpfs and filesystem compression.
+* **Kext collection built by us** (`tools/kcbuild.py`, and its Rust port `crates/anathema-kc`): links Apple's Intel kexts from the Tahoe and macOS 27 KDKs into one block the kernel loads. Storage (AHCI, NVMe, USB mass storage), USB, ACPI, APFS/HFS+, tmpfs and filesystem compression.
 * **Real userspace**: Apple's launchd, syslogd, bash, dyld and the real dyld shared cache run on the kernel. The commpage is mapped by a loader hook, and a stand-in Sandbox policy keeps launchd's service lookups working.
 * **Apple's recovery environment** (the x86_64 BaseSystem, APFS) boots and stays up.
-* **CPUs**: Intel (Haswell to Cascade Lake in QEMU) and AMD (the loader detects it and patches CPU identification and timing; one core in QEMU).
+* **CPUs**: Intel (Haswell to Cascade Lake in QEMU) and AMD (the loader detects it and patches CPU identification and timing; one core only for now, both in QEMU and on the real PC).
 * A `tools/` kit to build a GPT USB image: ESP with the loader, kernel and kexts, plus a root partition.
 
 In progress:
 
 * **Graphics and the installer window.** The NVIDIA GPU driver by NullMoth (RTX 20/30/40/50, separate noncommercial license) is being wired in; WindowServer and the installer need it.
 * **USB keyboard and mouse** in the recovery environment.
-* **Real hardware tests** and a setup tool that builds the stick on Windows (open PR).
+* **Real hardware tests** on more boards, and the setup tool (`crates/anathema-setup`) that builds the stick on Windows.
 
-Not working yet: Wi-Fi, audio, Bluetooth, sleep, AMD multi-core in the emulator, and anything on real hardware beyond the loader bring-up.
+Not working yet: WindowServer and the installer on real hardware, Wi-Fi, audio, Bluetooth, sleep, and AMD multi-core.
 
 ## How it works
 
@@ -41,6 +47,19 @@ UEFI firmware -> anathema-xboot (loader) -> macOS 27 Intel kernel
 ```
 
 The loader gives the kernel what a Mac's firmware normally would (a fake EFI environment and kernel-collection header), applies a short list of byte patches for things the Intel kernel expects from Apple hardware, and adds small stand-ins in code space for pieces we can't run (trust cache, AMFI, sandbox). `TODO.md` lists what each stand-in should become.
+
+## Build and test
+
+```
+# the loader (also builds on Apple silicon Macs)
+cargo build --release -p anathema-xboot --target x86_64-unknown-uefi
+# result: target/x86_64-unknown-uefi/release/anathema-xboot.efi
+
+# host unit tests; the two UEFI crates can't build for the host, so leave them out
+cargo test --workspace --exclude anathema-boot --exclude anathema-xboot
+```
+
+The unit tests need no Apple software. A few tests that need a real KDK or the network are marked `#[ignore]`.
 
 ## Try it / help
 

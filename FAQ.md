@@ -12,76 +12,76 @@ Short answers for people who just found the project. For the technical details, 
 
 ### What is Anathema?
 
-A research project that tries to boot **arm64 macOS on an ordinary x86-64 PC**. PCs can't run arm64 code directly, so Anathema translates the macOS kernel's arm64 instructions into x86-64 as it runs, and emulates the small virtual machine that macOS expects (interrupt controller, timer, serial port, disk). It also has its own UEFI boot loader for a USB stick.
+A research project that boots **macOS 27 on an ordinary PC with its own boot loader**. The loader (`anathema-xboot`, a UEFI application on a USB stick) starts Apple's real Intel macOS 27.2 kernel, gives it a kext collection we link ourselves, and brings up Apple's real userspace on top. It doesn't use OpenCore or Clover.
 
 ### Does it boot macOS?
 
-**No, not yet.** The macOS kernel starts, gets through most of its early setup, finds the disk and mounts it, and then fails when it tries to start the first user program (`/sbin/launchd`). No desktop, no installer, no apps. The [Status section of the README](README.md#status) has the exact details and is kept up to date.
+**Partly, and only to text so far.**
+
+* In QEMU the kernel, our kext collection, launchd and Apple's recovery environment boot and stay up.
+* First tests on a real PC (AMD Ryzen) have started. There the kernel boots and launchd and most daemons start, but WindowServer does not. So there is no installer screen, no desktop and no apps yet.
+
+The [Where it stands section of the README](README.md#where-it-stands) has the exact details and is kept up to date.
 
 ### Is this a Hackintosh?
 
-Not in the usual sense. A Hackintosh runs **Intel** macOS directly on PC hardware. Apple has stopped making Intel versions of macOS, so a Hackintosh can't run new releases. Anathema goes the other way: it runs the **arm64** version of macOS (the one for Apple silicon Macs) by translating it.
+Close, but built differently. A Hackintosh also runs Intel macOS directly on PC hardware, but it uses a community boot loader such as OpenCore. Anathema has its own loader, written for this project. It patches the kernel and fills in what a Mac's firmware would normally provide (device tree, boot arguments, small stand-ins for pieces like AMFI and the Sandbox policy).
 
 ### Which macOS version?
 
-The VirtualMac2,1 build of macOS 27.2. That is the version Apple ships for macOS virtual machines. It expects simpler hardware than a real Mac, which makes it the easiest arm64 macOS to start without Apple silicon.
+macOS 27.2: the Intel kernel `xnu-13432.41.4` (build 26B131), with Intel kexts from the Tahoe and macOS 27 Kernel Debug Kits, and the x86_64 recovery environment (BaseSystem).
 
-### Why is it so slow?
+### What is the current blocker?
 
-Every memory access the guest makes leaves the translated code and goes through a software memory manager. That is simple and easy to check for correctness, but slow: reaching the current stopping point takes minutes. Making it fast is planned work, after it boots correctly.
+WindowServer, the process that draws the screen. On real hardware, launchd's attempt to start it fails with errno 2 ("no such file or directory"). The suspected cause is that the macOS 27 kernel is running with a userspace from a different build. That is not confirmed yet. After that come the graphics driver, USB keyboard and mouse, and the installer itself. See [TODO.md](TODO.md).
+
+### When will it boot to a desktop?
+
+There is no date. Fix WindowServer first, then graphics, then the installer.
+
+### What happened to the arm64 translation idea?
+
+Anathema started as an attempt to run the *arm64* macOS kernel on a PC by translating its instructions to x86-64. That work is still in the repo as a research track (described in the README). It reaches the point where the kernel tries to start launchd and stops there. The native Intel path is where the progress is.
 
 ### Is it related to Stela?
 
 No. Stela is a separate project. Anathema looked at it only for ideas, contains none of its code, and is not a fork.
 
-### When will it boot to a desktop?
-
-There is no date. The next step is getting `launchd` to run. After that, graphics is the biggest open problem (see the [display write-up in the ideas repo](https://github.com/riftaway7-code/anathema-ideas/blob/main/writeups/display-output.md)).
-
 ## Trying it
 
 ### Can I try it on my PC?
 
-Not as a normal user yet. Right now it is for developers:
-
-* The main test setup (`rt-boot`) runs on **Linux** and prints the macOS kernel's boot log to your terminal.
-* The USB loader can show a hardware report and a readiness check for your PC, and has run its hardware bring-up test on a real Ryzen 5 5500. Its "Boot macOS" entry has only been tried under QEMU, not on a real PC.
-
-If you just want to watch progress, see [How to follow along](#how-do-i-follow-along) below.
+Only as a tester, not as a normal user. You build a USB stick with the scripts in `tools/` (a setup tool that does this for you on Windows is in progress). The stick boots to boot text on screen and stops short of the installer. Reports from real hardware are very welcome in the Discord `hardware-support` channel.
 
 ### Do I need my own copy of macOS?
 
-Yes. The repo contains no Apple software. To run the Linux test setup you need a macOS 27 IPSW (Apple's restore image) that you got yourself, and you extract three files from it. The README's "Running the harness" section lists them. Please don't share extracted Apple files in issues or in the Discord.
+Not by hand: the repo contains no Apple software, and the tools download what they need. Please don't share Apple files in issues or in the Discord.
 
 ### Can I build it on a Mac?
 
-You can build it and run the unit tests on any machine, including Apple silicon Macs:
+Yes. The loader cross-compiles to UEFI on any machine, including Apple silicon Macs, and the unit tests run there too:
 
 ```
-cargo test -p anathema-media
-cargo test -p anathema-xlat
+cargo build --release -p anathema-xboot --target x86_64-unknown-uefi
+cargo test --workspace --exclude anathema-boot --exclude anathema-xboot
 ```
 
-Running translated code needs an x86-64 host, because the translator produces x86-64 code. The full instruction checker (`rt-boot fbcheck`) also needs Linux with `qemu-aarch64`.
+`tools/xrun_esp.sh` boots a stick image in QEMU on macOS or Linux.
 
 ## Hardware
 
+### Which CPUs work?
+
+* **Intel**: Haswell to Cascade Lake, tested in QEMU.
+* **AMD**: the loader detects it and patches the kernel's CPU identification and timing. It runs on one core only for now, both in QEMU and on the real PC. Multi-core on AMD is an open task.
+
 ### Will my GPU / Wi-Fi / Ethernet / sound card work?
 
-None of these work yet, for any hardware. But here is the important part: **macOS inside Anathema never sees your real hardware.** It sees a few virtual devices that Anathema emulates. Anathema's own loader is what talks to your real PC.
+Here macOS talks to your real hardware directly, so every device needs a macOS driver (kext).
 
-So "support for my card" means Anathema needs:
-
-1. a virtual device that macOS already has a driver for, and
-2. code in Anathema that drives your real card.
-
-That is also why Hackintosh drivers (kexts) like IntelMausi or itlwm don't plug into Anathema: they are for Intel macOS talking directly to the card, and here macOS never touches the card.
-
-The [ideas repo index](https://github.com/riftaway7-code/anathema-ideas/blob/main/INDEX.md) shows what is planned and in what order.
-
-### AMD or NVIDIA?
-
-Right now the loader shows the screen through your PC's standard UEFI graphics, which works on **any** card that shows a boot screen, AMD, NVIDIA or Intel. A real accelerated desktop is a much bigger problem that doesn't depend on the card brand yet. The [display write-up](https://github.com/riftaway7-code/anathema-ideas/blob/main/writeups/display-output.md) explains why.
+* **Storage and USB**: AHCI (SATA), NVMe, USB and USB mass storage are in our kext collection.
+* **Graphics**: boot text uses your PC's standard UEFI framebuffer, which works on any card that shows a boot screen. Accelerated graphics is in progress through the NVIDIA driver by NullMoth (RTX 20/30/40/50, separate noncommercial license).
+* **Wi-Fi, audio and Bluetooth**: not started.
 
 ### Will iCloud, iMessage or the App Store work?
 
@@ -89,7 +89,7 @@ That idea is parked. Apple services check the machine's identity, and making one
 
 ### Can it install to my internal SSD?
 
-Not yet, and on purpose. Today every write macOS makes goes to memory and is thrown away at power-off, so nothing reaches your real disks. Installing to an internal drive is planned, with strict safety rules. See the [install write-up](https://github.com/riftaway7-code/anathema-ideas/blob/main/writeups/install-to-internal-drive.md).
+Not yet. Anathema boots from the USB stick. Installing to an internal drive is planned, with strict safety rules. See the [install write-up](https://github.com/riftaway7-code/anathema-ideas/blob/main/writeups/install-to-internal-drive.md).
 
 ## Trust, safety and legal
 
@@ -99,19 +99,17 @@ Every line was written by an AI (Claude Code) under a human's direction. The mai
 
 What keeps it honest:
 
-* every translated instruction is checked against QEMU, an independent, widely used emulator, with random inputs, and that has found real bugs;
-* unit tests for the file parsers and the translator's decoder run on any machine;
+* the loader's kernel patches (nearly all of them) check the bytes they expect before writing, and are skipped if they differ;
+* unit tests for the file parsers, the kext collection linker and the setup tool run on any machine;
 * outside reviews are welcome. Open an issue if you find something.
 
-Read it as a research log that happens to compile, not as a product.
+Read it as a research log that happens to work, not as a product.
 
 ### Is it safe to run?
 
-* The **Linux test setup** is an ordinary program. It reads the files you give it. The only files it writes are debug output you ask for (such as a framebuffer dump) and scratch files under `/tmp` for the QEMU checker.
-* The **USB loader** only reads your internal drives (its NVMe driver is read-only). It writes its reports and logs to the USB stick. The **bring-up test** also saves its log (up to about 12 KB) to a UEFI variable named `AnathemaBringup` several times during the run, so the log survives a hang. The variable is deleted the next time you boot Anathema. Some boards have very little variable storage, so don't run the bring-up test over and over, and boot Anathema once more afterwards to clear it.
+* The **loader** reads its files from the USB stick and writes a short `boot.log` back to the stick (CPU, framebuffer and memory map details, no personal data).
+* Once the kernel is running, **macOS has real storage drivers and can see your internal disks**, just like on a Mac. Nothing in Anathema is meant to write to them, but this is untested research code. Back up or unplug drives you can't afford to lose.
 * **anathema-setup** (the Windows tool that prepares the USB stick) **erases the disk you pick**. It also lets you pick external USB SSDs and hard drives up to 256 GB, not only sticks. **Unplug every USB drive except the stick** before you start, and check the model and size on the Review screen.
-
-Don't run experimental boot loaders on a machine that holds data you can't afford to lose without a backup. That's good advice for any project at this stage.
 
 ### Is it legal?
 
@@ -119,24 +117,24 @@ Anathema contains no Apple code, firmware or images. Apple's license for macOS s
 
 ### What is the license?
 
-MIT, with one exception: `crates/anathema-rt/src/aesdev.rs` follows the behaviour of a file from QEMU, which is GPL-2.0-or-later, so that file should be treated as GPL-2.0-or-later. See the README's "Credits and license" section.
+MIT, with one exception: `crates/anathema-rt/src/aesdev.rs` follows the behaviour of a file from QEMU, which is GPL-2.0-or-later, so that file should be treated as GPL-2.0-or-later. Add-ons such as the NullMoth NVIDIA driver keep their own licenses. See the README's "Credits and license" section.
 
 ## Helping
 
 ### How can I help without writing code?
 
-* **Hardware reports.** Boot the USB loader's hardware report and readiness check on your PC and share the result (board, CPU, GPU, what passed and what failed).
+* **Hardware reports.** Boot the stick on your PC and share your board, CPU and GPU, a photo of the screen where it stops, and the `boot.log` it leaves on the stick.
 * **Ideas.** Add them to the [ideas repo](https://github.com/riftaway7-code/anathema-ideas). Check the index first, and if your idea is already there, add a +1 to that file instead of a new one.
 * **Docs.** If something in the README or this FAQ confused you, say so. That's a bug too.
 
 ### How can I help with code?
 
-* Read the [Status section](README.md#status) for the current problem.
-* Run the tests (`cargo test -p anathema-media`, `cargo test -p anathema-xlat`) and add more. Parsers and the instruction decoder are good places to start.
+* Read the [Where it stands section](README.md#where-it-stands) for the current problem, and pick a task from [TODO.md](TODO.md).
+* Run the tests (`cargo test --workspace --exclude anathema-boot --exclude anathema-xboot`) and add more. Parsers and the kext collection linker are good places to start.
 * Open an issue before big changes, so work doesn't overlap.
 
 ### How do I follow along?
 
 * **Watch the GitHub repo** (Watch → Custom → Releases, or All Activity if you want every commit).
 * **Join the Discord** for the weekly devlog and announcements.
-* The README's **Status** section is the source of truth for how far it boots.
+* The README's **Where it stands** section is the source of truth for how far it boots.
