@@ -23,7 +23,7 @@ impl Default for Ctx {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", unix))]
 extern "C" {
     fn mmap(addr: *mut u8, len: usize, prot: i32, flags: i32, fd: i32, off: i64) -> *mut u8;
     fn munmap(addr: *mut u8, len: usize) -> i32;
@@ -38,7 +38,7 @@ pub struct Region {
 }
 
 impl Region {
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", unix))]
     pub fn fixed(addr: usize, len: usize, exec: bool) -> Option<Region> {
         let prot = if exec { 7 } else { 3 };
         let p = unsafe { mmap(addr as *mut u8, len, prot, 0x2 | 0x20 | 0x100000, -1, 0) };
@@ -48,11 +48,21 @@ impl Region {
         Some(Region { ptr: p, len })
     }
 
-    #[cfg(feature = "std")]
+    #[cfg(all(feature = "std", not(unix)))]
+    pub fn fixed(_addr: usize, _len: usize, _exec: bool) -> Option<Region> {
+        panic!("anathema_xlat::run::Region::fixed requires Unix mmap")
+    }
+
+    #[cfg(all(feature = "std", unix))]
     pub fn anon(len: usize) -> Region {
         let p = unsafe { mmap(core::ptr::null_mut(), len, 7, 0x2 | 0x20, -1, 0) };
         assert!(p as isize != -1);
         Region { ptr: p, len }
+    }
+
+    #[cfg(all(feature = "std", not(unix)))]
+    pub fn anon(_len: usize) -> Region {
+        panic!("anathema_xlat::run::Region::anon requires Unix mmap")
     }
 
     #[cfg(not(feature = "std"))]
@@ -66,7 +76,7 @@ impl Region {
     }
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", unix))]
 impl Drop for Region {
     fn drop(&mut self) {
         unsafe {
