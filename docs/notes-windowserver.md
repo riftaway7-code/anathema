@@ -5,6 +5,108 @@ files were opened. The evidence is the repo (loader, `tools/`, `TODO.md`) and th
 on the real PC, launchd and most daemons start, but launchd's `posix_spawn` of WindowServer fails with
 errno 2.
 
+## Update 3: the exec itself (2026-11-28)
+
+New evidence from riftsclaude, read-only on the stick's root:
+
+- `com.apple.WindowServer.plist` has `ProgramArguments[0]` =
+  `/System/Library/PrivateFrameworks/SkyLight.framework/Resources/WindowServer`.
+- That is the same path their probe found on the root as a regular, decmpfs type 8 executable.
+- The plist has no `WorkingDirectory` and no `RootDirectory` key.
+
+So the "path missing on the root" hypothesis (old #1 and #2, and the `Program` / chdir / chroot part
+of update 2's A) is **refuted**. Still open from A: `StandardOutPath` / `StandardErrorPath`, which
+weren't reported either way.
+
+### The key constraint: xpcproxy works, and it is also type 8
+
+On current macOS, launchd starts each daemon by spawning `/usr/libexec/xpcproxy`. xpcproxy then
+execs the real program in place (`posix_spawn` with `POSIX_SPAWN_SETEXEC`) (verify for this build).
+Daemons run, and xpcproxy is decmpfs type 8. So on this boot the following all work:
+
+- path lookup,
+- the type 8 decompressor (registered, resource fork readable),
+- Mach-O loading,
+- dyld at `/usr/lib/dyld`,
+- the MAC policy checks (sandbox stand-in, AMFI stand-in).
+
+**Anything systemic in that chain would also break xpcproxy, and with it every daemon.** That includes
+a missing decompressor, a broken decmpfs or vnode-pager read path, missing dyld, a global
+sandbox/AMFI/trust-cache denial, or broken page-in from the early-VM patches. So those are ruled out
+as the cause.
+
+What's left must be **specific to WindowServer**: its file's data, its Mach-O contents, or how its job
+is spawned.
+
+This rests on one assumption: that the daemons which run really were exec'd through xpcproxy. Check
+that first (check 1 below). If this build's launchd spawns them directly, xpcproxy proves nothing.
+
+### What in posix_spawn / exec can return ENOENT for a file that exists
+
+The mechanisms below come from public XNU and launchd behaviour (verify against xnu-13432). For each,
+the question is whether it would also break xpcproxy.
+
+| mechanism | gives ENOENT? | also breaks xpcproxy? | status |
+| --- | --- | --- | --- |
+| `LC_LOAD_DYLINKER` names a path that doesn't exist (`load_dylinker` -> `LOAD_ENOENT` -> ENOENT) | yes | only if xpcproxy names the same missing path | **open**: depends on WindowServer's own load command |
+| the slice the kernel picks differs: a fat binary with `x86_64h` chosen because the CPU reports Haswell (the loader spoofs Haswell on AMD, `install_amd_cpuid_spoof`), and that slice has a different dylinker or layout | ENOENT only through the dylinker row above; a bad slice otherwise gives `EBADARCH` / `ENOEXEC` | no, if xpcproxy is thin or its slices agree | open, cheap to check |
+| `#!` interpreter missing | yes | n/a: WindowServer is a Mach-O, unless decompression returns the wrong bytes | low |
+| decmpfs / resource fork read failing **for this file only** (stream-backed vs embedded fork, chunk count, damaged fork) | unusual: missing xattr is `ENOATTR`, a failed read is usually `EIO` / `ENOTSUP`, a short or empty read is `ENOEXEC`; ENOENT needs an odd mapping in APFS or decmpfs (verify) | no, the failure would be file-specific | open, low-medium |
+| a failed vnode-pager page-in of the compressed file | no: page-in errors come later, as a crash or kill, not a spawn errno | yes if systemic | ruled out |
+| sandbox, AMFI, trust cache, launch constraints | no: these give `EPERM` / `EACCES` or a `CODESIGNING` kill. Also the sandbox stand-in only fills `mpo_policy_syscall` (`ops + 0x3a8`, `tools/loadkexts.c`), so it has no exec hook, and the AMFI stand-in returns 0 for every call (`install_amfi_standin`) | yes for any global effect | ruled out for ENOENT |
+| posix_spawn **file actions** for `StandardOutPath` / `StandardErrorPath` (open fails because the parent directory doesn't exist) | yes, if launchd passes them as spawn file actions rather than opening them itself (verify) | no, the paths are per job | **open**: not reported yet |
+| the spawn targets **a different binary** than WindowServer: a job-specific helper or trampoline, a conclave or other special spawn path that some underscore key left after the `_Conclave` strip still selects, or an `xpcproxy` re-exec | yes, the helper path may not exist on this (Tahoe-era) root | no, ordinary jobs don't use it | **open**: the most direct fit with "exists but ENOENT" |
+| `UserName` / `GroupName` lookup failing (for example `_windowserver` missing) | not normally: launchd reports a user-lookup error, not a spawn errno (verify) | no | low |
+
+### Re-ranking (replaces update 2's list)
+
+1. **The spawn targets something other than WindowServer's binary, or carries a job-specific path**
+   (most likely; verify).
+   - This could be a helper or special spawn path selected by leftover keys after the `_Conclave`
+     strip, or a stdout/stderr file action into a missing directory.
+   - It fits every fact: the binary exists, the shared mechanisms are proven by xpcproxy, and ENOENT
+     means some path is missing.
+   - The exact launchd log line settles it. It names the path that `posix_spawn` failed on, and
+     whether the error came from launchd or from xpcproxy.
+2. **WindowServer's `LC_LOAD_DYLINKER`, or the slice the kernel chooses, names a dylinker that isn't
+   there** (possible; cheap to check).
+   - This is the only exec-internal route to ENOENT for an existing Mach-O.
+   - The Haswell spoof means an `x86_64h` slice, if present, is the one that gets picked.
+3. **A file-specific decmpfs read failure in WindowServer's resource fork** (possible, but ENOENT
+   is an unusual result for it).
+4. **User lookup, policy checks, page-in, missing decompressor**: low or ruled out (see the table).
+5. **Path missing on the root (old #1 / #2)**: refuted.
+
+### Cheapest next checks, read-only on the stick (for riftsclaude)
+
+1. **Exact log line.**
+   - Find launchd's error for `com.apple.WindowServer` in the serial log or `/var/log` on the stick:
+     the full line, including the path in `posix_spawn(...)` and any "xpcproxy" wording.
+   - Also grep for `xpcproxy` near other daemons' start lines, to confirm daemons go through
+     xpcproxy.
+   - Also grep for `anx loadkext`, `AMFI`, `Sandbox`, `constraint` and `CODE SIGNING` near the
+     WindowServer attempt.
+2. **The whole patched plist.**
+   - `plutil -lint` and `plutil -p` on `System/Library/LaunchDaemons/com.apple.WindowServer.plist`.
+   - Report every key, especially `StandardOutPath`, `StandardErrorPath`, `UserName`, `GroupName`,
+     `POSIXSpawnType`, `Program` (if present alongside `ProgramArguments`), and **every key starting
+     with `_`**. Confirm `_Conclave` is fully gone, value included.
+   - For any path a key names, check that its parent directory exists on the root.
+3. **The Mach-O.**
+   - Extract both files decompressed. Use `anathema-media extract <backup> <path> --out ws.bin`, or
+     `cat` the file from a read-only mounted image on a Mac (macOS decompresses on read).
+   - Run `lipo -info ws.bin xpc.bin`.
+   - Run `otool -arch all -l ws.bin | grep -A2 LC_LOAD_DYLINKER`, and the same for `xpc.bin`.
+   - Check every dylinker path named exists on the root.
+4. **decmpfs headers.**
+   - On a read-only mount: `xattr -px com.apple.decmpfs <file> | head -2`. Bytes 4-7 are the type and
+     bytes 8-15 the uncompressed size, little-endian.
+   - `ls -l <file>/..namedfork/rsrc` gives the fork size.
+   - Do this for WindowServer, xpcproxy, launchd and syslogd. Compare the fork sizes, and whether each
+     decompresses to exactly the header size.
+5. **User records** (only if the plist has `UserName`): check that
+   `var/db/dslocal/nodes/Default/users/_windowserver.plist` (or the named user) exists on the root.
+
 ## Update 2: decmpfs (2026-11-28)
 
 New fact from riftsclaude's probe of a read-only backup of the stick's APFS root:
@@ -94,9 +196,9 @@ What could still differ for WindowServer:
   for a type, XNU's decmpfs treats or reports the file in a way I can't pin down from memory: it may
   fall back to the empty data fork (which gives `ENOEXEC`-like failures), or return `ENOTSUP` (verify).
 
-### New ranking
+### New ranking (superseded by update 3)
 
-1. **A. ENOENT comes from a non-executable path in the job** (likely; verify).
+1. **A. ENOENT comes from a non-executable path in the job** (likely; verify). Update 3: `Program`, `WorkingDirectory` and `RootDirectory` are refuted; stdout/stderr are still open.
    - `WorkingDirectory`, `RootDirectory`, `StandardOutPath` / `StandardErrorPath`, or the `Program`
      path itself differing from where the file is.
    - Fits the facts best: the binary exists, decompression works for xpcproxy, and ENOENT literally
@@ -173,7 +275,7 @@ resolve on this root?**
 
 ## Hypotheses, most likely first
 
-### 1. The executable path doesn't resolve on the booted root, because of a userspace/kernel build mismatch (not confirmed: the binary exists, see update 2)
+### 1. The executable path doesn't resolve on the booted root, because of a userspace/kernel build mismatch (refuted: the binary exists at the plist's path, see update 3)
 
 Evidence that kernel and userspace come from different builds:
 
@@ -212,7 +314,7 @@ How to confirm (no hardware needed, on the built image):
 4. Write down the BaseSystem build (`System/Library/CoreServices/SystemVersion.plist`) next to the
    kernel's 26B131.
 
-### 2. WindowServer binary missing from the root (ruled out: the file exists, see update 2)
+### 2. WindowServer binary missing from the root (refuted: the file exists, see updates 2 and 3)
 
 If the root that boots is closer to an update or restore ramdisk than to a full recovery BaseSystem,
 there may be no WindowServer binary at all. An update ramdisk has no GUI. Evidence: the repo does use
