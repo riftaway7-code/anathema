@@ -44,7 +44,7 @@ extern "C" fn on_segv(_sig: i32, info: *const u8, _uc: *mut u8) {
 }
 
 fn install_segv() {
-    let act = SigAction { handler: on_segv as usize, mask: [0; 16], flags: 4, restorer: 0 };
+    let act = SigAction { handler: on_segv as *const () as usize, mask: [0; 16], flags: 4, restorer: 0 };
     unsafe {
         sigaction(11, &act, std::ptr::null_mut());
         sigaction(7, &act, std::ptr::null_mut());

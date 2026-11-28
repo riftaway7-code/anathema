@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::vec::Vec;
 pub const GIC_BASE: u64 = 0x1000_0000;
 pub const GICD_SIZE: u64 = 0x1_0000;
 pub const GICR_BASE: u64 = 0x1001_0000;

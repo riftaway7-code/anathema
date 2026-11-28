@@ -1,5 +1,4 @@
 use crate::gfx::*;
-use crate::input::Key;
 use crate::exfat;
 use alloc::format;
 use alloc::string::String;

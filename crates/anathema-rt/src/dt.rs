@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 pub struct Prop {
     pub name: String,
     pub value: Vec<u8>,

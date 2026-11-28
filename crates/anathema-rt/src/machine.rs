@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 use crate::mem::{Bus, Ram};
 use crate::mmu::Mmu;
 use anathema_xlat::decode::{decode, Addr, AtomOp, Ext, ExcKind, Insn, Mode, ZR};

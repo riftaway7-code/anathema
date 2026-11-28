@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::{string::String, vec::Vec};
 use crate::trans::*;
 use crate::x86::*;
 use crate::fx::HashMap;

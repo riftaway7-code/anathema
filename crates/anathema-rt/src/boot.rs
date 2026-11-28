@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::vec::Vec;
 use crate::dt;
 use crate::macho::Image;
 use crate::mem::{Ram, RAM_BASE};

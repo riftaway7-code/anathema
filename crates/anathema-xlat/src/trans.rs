@@ -1,4 +1,4 @@
-use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
+use alloc::vec::Vec;
 use crate::decode::*;
 use crate::x86::*;
 
