@@ -18,6 +18,6 @@ Open work, roughly in order. Pick one and say so in `dev-talk`.
 - [ ] **Wi-Fi, audio, Bluetooth.** Not started.
 
 ## Tooling
-- [ ] Rust port of `tools/kcbuild.py` (in progress by Aiyan).
-- [ ] An installer/setup tool that builds the USB stick (loader, kext collection, root) for you.
+- [x] Rust port of `tools/kcbuild.py` (`crates/anathema-kc`).
+- [x] An installer/setup tool (`crates/anathema-setup`) that downloads KDKs, links `xkc.bin`, and writes the `anathema-xboot` ESP on Windows (full root/payload image staging stays in `tools/`).
 - [ ] Faster test loop: parallel emulator runs, disk snapshots.

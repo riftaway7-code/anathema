@@ -13,7 +13,7 @@ Everything below was tested in QEMU (UEFI, USB stick, SATA and NVMe disks). **No
 Working:
 
 * **Own UEFI loader** (`crates/anathema-xboot`) starts the macOS 27.2 Intel kernel (`xnu-13432.41.4`, build 26B131) from a USB stick: memory map, device tree, boot args, patches, and the UEFI framebuffer for on-screen boot text.
-* **Kext collection built by us** (`tools/kcbuild.py`, Rust port in an open PR): links Apple's Intel kexts from the Tahoe and macOS 27 KDKs into one block the kernel loads. Storage (AHCI, NVMe, USB mass storage), USB, ACPI, APFS/HFS+, tmpfs and filesystem compression.
+* **Kext collection built by us** (`tools/kcbuild.py` and `crates/anathema-kc`): links Apple's Intel kexts from the Tahoe and macOS 27 KDKs into one block the kernel loads. Storage (AHCI, NVMe, USB mass storage), USB, ACPI, APFS/HFS+, tmpfs and filesystem compression.
 * **Real userspace**: Apple's launchd, syslogd, bash, dyld and the real dyld shared cache run on the kernel. The commpage is mapped by a loader hook, and a stand-in Sandbox policy keeps launchd's service lookups working.
 * **Apple's recovery environment** (the x86_64 BaseSystem, APFS) boots and stays up.
 * **CPUs**: Intel (Haswell to Cascade Lake in QEMU) and AMD (the loader detects it and patches CPU identification and timing; one core in QEMU).
@@ -23,7 +23,7 @@ In progress:
 
 * **Graphics and the installer window.** The NVIDIA GPU driver by NullMoth (RTX 20/30/40/50, separate noncommercial license) is being wired in; WindowServer and the installer need it.
 * **USB keyboard and mouse** in the recovery environment.
-* **Real hardware tests** and a setup tool that builds the stick on Windows (open PR).
+* **Real hardware tests** (`crates/anathema-setup` builds the `anathema-xboot` USB stick ESP on Windows).
 
 Not working yet: Wi-Fi, audio, Bluetooth, sleep, AMD multi-core in the emulator, and anything on real hardware beyond the loader bring-up.
 
@@ -66,7 +66,7 @@ The pieces:
 | `anathema-rt` | The runtime: a virtual arm64 machine built around the translator, plus the `rt-boot` test harness and a `no_std` `Vm` library. |
 | `anathema-boot` | A UEFI application: boot menu, hardware report, readiness check, bring-up test, and a "Boot macOS" entry that runs the runtime inside the loader. |
 | `anathema-media` | IPSW tooling: update feed and ranged download, zip, plist, IM4P, AEA decryption, APFS reader, dyld shared cache reader. |
-| `anathema-setup` | Windows installer that prepares the USB stick. |
+| `anathema-setup` | Windows installer that prepares the USB stick (targets `anathema-xboot` ESP). |
 
 ### The translator (`anathema-xlat`)
 
